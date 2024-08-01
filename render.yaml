@@ -5,13 +5,15 @@ services:
     plan: standard
     runtime: docker
     dockerfilePath: ./docker/render.Dockerfile
-    repo: https://github.com/langflow-ai/langflow
+    repo: https://github.com/headlinevc/langflow
     branch: main
     healthCheckPath: /health_check
     autoDeploy: false
     envVars:
       - key: LANGFLOW_DATABASE_URL
-        value: sqlite:////app/data/.cache/langflow/langflow.db
+        fromDatabase:
+          name: langflow-db
+          property: connectionString
       - key: LANGFLOW_HOST
         value: 0.0.0.0
       - key: LANGFLOW_PORT
@@ -22,3 +24,10 @@ services:
     disk:
       name: langflow-data
       mountPath: /app/data
+
+databases:
+  - name: langflow-db
+    plan: starter
+    previewPlan: starter
+    databaseName: langflow_db_production
+    user: langflow
