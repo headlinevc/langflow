@@ -6,7 +6,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from langflow.custom import CustomComponent
+from langflow.custom import Component
 
 
 class CustomComponentPathValueError(ValueError):
@@ -348,7 +348,7 @@ class DirectoryReader:
                 try:
                     output_types = await self.get_output_types_from_code_async(result_content)
                 except Exception as exc:
-                    logger.exception(f"Error while getting output types from code: {str(exc)}")
+                    logger.error(f"Error while getting output types from code: {str(exc)}")
                     output_types = [component_name_camelcase]
             else:
                 output_types = [component_name_camelcase]
@@ -373,7 +373,7 @@ class DirectoryReader:
         """
         Get the output types from the code.
         """
-        custom_component = CustomComponent(_code=code)
+        custom_component = Component(_code=code)
         types_list = custom_component.get_function_entrypoint_return_type
 
         # Get the name of types classes

@@ -1,7 +1,7 @@
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Type
 
 import sqlalchemy as sa
 from alembic import command, util
@@ -50,7 +50,10 @@ class DatabaseService(Service):
         if self.settings_service.settings.database_url and self.settings_service.settings.database_url.startswith(
             "sqlite"
         ):
-            connect_args = {"check_same_thread": False}
+            connect_args = {
+                "check_same_thread": False,
+                "timeout": self.settings_service.settings.db_connect_timeout,
+            }
         else:
             connect_args = {}
         try:
@@ -133,7 +136,7 @@ class DatabaseService(Service):
     def check_schema_health(self) -> bool:
         inspector = inspect(self.engine)
 
-        model_mapping = {
+        model_mapping: dict[str, Type[SQLModel]] = {
             "flow": models.Flow,
             "user": models.User,
             "apikey": models.ApiKey,
