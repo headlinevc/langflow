@@ -7,7 +7,6 @@ services:
     dockerfilePath: ./docker/render.Dockerfile
     repo: https://github.com/headlinevc/langflow
     branch: main
-    plan: standard
     healthCheckPath: /health
     autoDeploy: false
     envVars:
