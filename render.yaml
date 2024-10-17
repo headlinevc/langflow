@@ -8,6 +8,7 @@ services:
     repo: https://github.com/headlinevc/langflow
     branch: main
     healthCheckPath: /health
+    numInstances: 3
     autoDeploy: false
     envVars:
       - key: LANGFLOW_DATABASE_URL
@@ -21,9 +22,6 @@ services:
         value: 10000
       - key: LANGFLOW_LOG_LEVEL
         value: INFO
-    disk:
-      name: langflow-data
-      mountPath: /app/data
 
 databases:
   - name: langflow-db
