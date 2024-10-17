@@ -2,7 +2,7 @@ services:
   # A Docker web service
   - type: web
     name: langflow
-    plan: standard
+    plan: pro
     runtime: docker
     dockerfilePath: ./docker/render.Dockerfile
     repo: https://github.com/headlinevc/langflow
