@@ -25,7 +25,8 @@ services:
 
 databases:
   - name: langflow-db
-    plan: starter
-    previewPlan: starter
+    plan: basic-1gb
+    previewPlan: basic-256mb
     databaseName: langflow_db_production
     user: langflow
+    diskSizeGB: 10
