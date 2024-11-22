@@ -1,6 +1,6 @@
+import { track } from "@/customization/utils/analytics";
 import { useState } from "react";
 import { Control } from "react-hook-form";
-import IOModal from "../../modals/IOModal";
 import useAlertStore from "../../stores/alertStore";
 import useFlowsManagerStore from "../../stores/flowsManagerStore";
 import { FlowType } from "../../types/flow";
@@ -36,11 +36,12 @@ export default function CollectionCardComponent({
   const setErrorData = useAlertStore((state) => state.setErrorData);
   const setCurrentFlow = useFlowsManagerStore((state) => state.setCurrentFlow);
   const getFlowById = useFlowsManagerStore((state) => state.getFlowById);
-  const [openPlayground, setOpenPlayground] = useState(false);
+  // const [openPlayground, setOpenPlayground] = useState(false);
   const [loadingPlayground, setLoadingPlayground] = useState(false);
   const selectedFlowsComponentsCards = useFlowsManagerStore(
     (state) => state.selectedFlowsComponentsCards,
   );
+
   function hasPlayground(flow?: FlowType) {
     if (!flow) {
       return false;
@@ -53,6 +54,32 @@ export default function CollectionCardComponent({
     selectedFlowsComponentsCards?.includes(data?.id) ?? false;
 
   const { onDragStart } = useDragStart(data);
+
+  const handlePlaygroundClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    track("Playground Button Clicked", { flowId: data.id });
+    setLoadingPlayground(true);
+
+    if (data) {
+      if (!hasPlayground(data)) {
+        setErrorData({
+          title: "Error",
+          list: ["This flow doesn't have a playground."],
+        });
+        setLoadingPlayground(false);
+        return;
+      }
+      setCurrentFlow(data);
+      // setOpenPlayground(true);
+      setLoadingPlayground(false);
+    } else {
+      setErrorData({
+        title: "Error",
+        list: ["Error getting flow data."],
+      });
+    }
+  };
 
   return (
     <>
@@ -125,7 +152,7 @@ export default function CollectionCardComponent({
         <CardFooter>
           <div className="z-50 flex w-full items-center justify-between gap-2">
             <div className="flex w-full flex-wrap items-end justify-end gap-2">
-              {playground && (
+              {/* {playground && (
                 <Button
                   disabled={loadingPlayground || !hasPlayground(data)}
                   key={data.id}
@@ -134,30 +161,7 @@ export default function CollectionCardComponent({
                   size="sm"
                   className="gap-2 whitespace-nowrap bg-muted"
                   data-testid={"playground-flow-button-" + data.id}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setLoadingPlayground(true);
-                    const flow = getFlowById(data.id);
-                    if (flow) {
-                      if (!hasPlayground(flow)) {
-                        setErrorData({
-                          title: "Error",
-                          list: ["This flow doesn't have a playground."],
-                        });
-                        setLoadingPlayground(false);
-                        return;
-                      }
-                      setCurrentFlow(flow);
-                      setOpenPlayground(true);
-                      setLoadingPlayground(false);
-                    } else {
-                      setErrorData({
-                        title: "Error",
-                        list: ["Error getting flow data."],
-                      });
-                    }
-                  }}
+                  onClick={handlePlaygroundClick}
                 >
                   {!loadingPlayground ? (
                     <IconComponent
@@ -169,12 +173,12 @@ export default function CollectionCardComponent({
                   )}
                   Playground
                 </Button>
-              )}
+              )} */}
             </div>
           </div>
         </CardFooter>
       </Card>
-      {openPlayground && (
+      {/* {openPlayground && (
         <IOModal
           key={data.id}
           cleanOnClose={true}
@@ -183,7 +187,7 @@ export default function CollectionCardComponent({
         >
           <></>
         </IOModal>
-      )}
+      )} */}
     </>
   );
 }

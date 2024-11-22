@@ -1,7 +1,11 @@
+import LangflowLogo from "@/assets/LangflowLogo.svg?react";
 import { useAddUser } from "@/controllers/API/queries/auth";
+import { CustomLink } from "@/customization/components/custom-link";
+import { ENABLE_NEW_LOGO } from "@/customization/feature-flags";
+import { useCustomNavigate } from "@/customization/hooks/use-custom-navigate";
+import { track } from "@/customization/utils/analytics";
 import * as Form from "@radix-ui/react-form";
 import { FormEvent, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import InputComponent from "../../components/inputComponent";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -26,7 +30,7 @@ export default function SignUp(): JSX.Element {
   const { password, cnfPassword, username } = inputState;
   const setSuccessData = useAlertStore((state) => state.setSuccessData);
   const setErrorData = useAlertStore((state) => state.setErrorData);
-  const navigate = useNavigate();
+  const navigate = useCustomNavigate();
 
   const { mutate: mutateAddUser } = useAddUser();
 
@@ -51,7 +55,8 @@ export default function SignUp(): JSX.Element {
     };
 
     mutateAddUser(newUser, {
-      onSuccess: () => {
+      onSuccess: (user) => {
+        track("User Signed Up", user);
         setSuccessData({
           title: SIGN_UP_SUCCESS,
         });
@@ -82,13 +87,20 @@ export default function SignUp(): JSX.Element {
         const data = Object.fromEntries(new FormData(event.currentTarget));
         event.preventDefault();
       }}
-      className="h-full w-full"
+      className="h-screen w-full"
     >
       <div className="flex h-full w-full flex-col items-center justify-center bg-muted">
         <div className="flex w-72 flex-col items-center justify-center gap-2">
-          <span className="mb-4 text-5xl">⛓️</span>
+          {ENABLE_NEW_LOGO ? (
+            <LangflowLogo
+              title="Langflow logo"
+              className="mb-4 h-10 w-10 scale-[1.5]"
+            />
+          ) : (
+            <span className="mb-4 text-5xl">⛓️</span>
+          )}
           <span className="mb-6 text-2xl font-semibold text-primary">
-            Sign up to Langflow
+            Sign up for Langflow
           </span>
           <div className="mb-3 w-full">
             <Form.Field name="username">
@@ -184,11 +196,11 @@ export default function SignUp(): JSX.Element {
             </Form.Submit>
           </div>
           <div className="w-full">
-            <Link to="/login">
+            <CustomLink to="/login">
               <Button className="w-full" variant="outline">
                 Already have an account?&nbsp;<b>Sign in</b>
               </Button>
-            </Link>
+            </CustomLink>
           </div>
         </div>
       </div>

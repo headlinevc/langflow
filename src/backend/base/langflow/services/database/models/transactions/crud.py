@@ -1,13 +1,15 @@
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select, col
+from sqlmodel import Session, col, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from langflow.services.database.models.transactions.model import TransactionBase, TransactionTable
 
 
-def get_transactions_by_flow_id(db: Session, flow_id: UUID, limit: Optional[int] = 1000) -> list[TransactionTable]:
+async def get_transactions_by_flow_id(
+    db: AsyncSession, flow_id: UUID, limit: int | None = 1000
+) -> list[TransactionTable]:
     stmt = (
         select(TransactionTable)
         .where(TransactionTable.flow_id == flow_id)
@@ -15,8 +17,8 @@ def get_transactions_by_flow_id(db: Session, flow_id: UUID, limit: Optional[int]
         .limit(limit)
     )
 
-    transactions = db.exec(stmt)
-    return [t for t in transactions]
+    transactions = await db.exec(stmt)
+    return list(transactions)
 
 
 def log_transaction(db: Session, transaction: TransactionBase) -> TransactionTable:
@@ -24,7 +26,7 @@ def log_transaction(db: Session, transaction: TransactionBase) -> TransactionTab
     db.add(table)
     try:
         db.commit()
-        return table
-    except IntegrityError as e:
+    except IntegrityError:
         db.rollback()
-        raise e
+        raise
+    return table

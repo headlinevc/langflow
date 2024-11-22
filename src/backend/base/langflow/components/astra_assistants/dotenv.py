@@ -1,5 +1,7 @@
 import io
+
 from dotenv import load_dotenv
+
 from langflow.custom import Component
 from langflow.inputs import MultilineSecretInput
 from langflow.schema.message import Message
@@ -9,12 +11,13 @@ from langflow.template import Output
 class Dotenv(Component):
     display_name = "Dotenv"
     description = "Load .env file into env vars"
-
+    icon = "AstraDB"
     inputs = [
         MultilineSecretInput(
             name="dotenv_file_content",
             display_name="Dotenv file content",
-            info="Paste the content of your .env file directly, since contents are sensitive, using a Global variable set as 'password' is recommended",
+            info="Paste the content of your .env file directly, since contents are sensitive, "
+            "using a Global variable set as 'password' is recommended",
         )
     ]
 
