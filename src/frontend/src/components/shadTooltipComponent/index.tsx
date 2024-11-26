@@ -1,28 +1,46 @@
+import React from "react";
 import { ShadToolTipType } from "../../types/components";
 import { cn } from "../../utils/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
-export default function ShadTooltip({
+const ShadTooltip: React.FC<ShadToolTipType> = ({
   content,
   side,
   asChild = true,
   children,
   styleClasses,
   delayDuration = 500,
-}: ShadToolTipType): JSX.Element {
-  return content ? (
-    <Tooltip defaultOpen={!children} delayDuration={delayDuration}>
+  open,
+  align,
+  setOpen,
+  avoidCollisions = false,
+}) => {
+  if (!content) {
+    return <>{children}</>;
+  }
+
+  return (
+    <Tooltip
+      defaultOpen={!children}
+      open={open}
+      onOpenChange={setOpen}
+      delayDuration={delayDuration}
+    >
       <TooltipTrigger asChild={asChild}>{children}</TooltipTrigger>
       <TooltipContent
-        className={cn(styleClasses, "max-w-96")}
+        className={cn(
+          "z-[99] max-w-96 bg-tooltip text-[12px] text-tooltip-foreground",
+          styleClasses,
+        )}
         side={side}
-        avoidCollisions={false}
+        avoidCollisions={avoidCollisions}
+        align={align}
         sticky="always"
       >
         {content}
       </TooltipContent>
     </Tooltip>
-  ) : (
-    <>{children}</>
   );
-}
+};
+
+export default ShadTooltip;

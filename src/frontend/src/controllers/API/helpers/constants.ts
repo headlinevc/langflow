@@ -20,6 +20,9 @@ export const URLs = {
   VARIABLES: `variables`,
   VALIDATE: `validate`,
   CONFIG: `config`,
+  STARTER_PROJECTS: `starter-projects`,
+  SIDEBAR_CATEGORIES: `sidebar_categories`,
+  ALL: `all`,
 } as const;
 
 export function getURL(key: keyof typeof URLs, params: any = {}) {

@@ -17,21 +17,23 @@ export default function useShortcuts({
   shareComponent,
   ungroup,
   minimizeFunction,
+  activateToolMode,
 }: {
-  showOverrideModal: boolean;
-  showModalAdvanced: boolean;
-  openModal: boolean;
-  showconfirmShare: boolean;
-  FreezeAllVertices: () => void;
-  Freeze: () => void;
-  downloadFunction: () => void;
-  displayDocs: () => void;
-  saveComponent: () => void;
-  showAdvance: () => void;
-  handleCodeModal: () => void;
-  shareComponent: () => void;
-  ungroup: () => void;
-  minimizeFunction: () => void;
+  showOverrideModal?: boolean;
+  showModalAdvanced?: boolean;
+  openModal?: boolean;
+  showconfirmShare?: boolean;
+  FreezeAllVertices?: () => void;
+  Freeze?: () => void;
+  downloadFunction?: () => void;
+  displayDocs?: () => void;
+  saveComponent?: () => void;
+  showAdvance?: () => void;
+  handleCodeModal?: () => void;
+  shareComponent?: () => void;
+  ungroup?: () => void;
+  minimizeFunction?: () => void;
+  activateToolMode?: () => void;
 }) {
   const advanced = useShortcutsStore((state) => state.advanced);
   const minimize = useShortcutsStore((state) => state.minimize);
@@ -43,63 +45,82 @@ export default function useShortcuts({
   const download = useShortcutsStore((state) => state.download);
   const freeze = useShortcutsStore((state) => state.freeze);
   const freezeAll = useShortcutsStore((state) => state.FreezePath);
+  const toolMode = useShortcutsStore((state) => state.toolMode);
 
   function handleFreezeAll(e: KeyboardEvent) {
-    if (isWrappedWithClass(e, "noflow")) return;
+    if (isWrappedWithClass(e, "noflow") || !FreezeAllVertices) return;
     e.preventDefault();
     FreezeAllVertices();
   }
 
   function handleFreeze(e: KeyboardEvent) {
-    if (isWrappedWithClass(e, "noflow")) return;
+    if (isWrappedWithClass(e, "noflow") || !Freeze) return;
     e.preventDefault();
     Freeze();
   }
 
   function handleDownloadWShortcut(e: KeyboardEvent) {
+    if (!downloadFunction) return;
     e.preventDefault();
     downloadFunction();
   }
 
   function handleDocsWShortcut(e: KeyboardEvent) {
+    if (!displayDocs) return;
     e.preventDefault();
     displayDocs();
   }
 
   function handleSaveWShortcut(e: KeyboardEvent) {
-    if (isWrappedWithClass(e, "noflow") && !showOverrideModal) return;
+    if (
+      (isWrappedWithClass(e, "noflow") && !showOverrideModal) ||
+      !saveComponent
+    )
+      return;
     e.preventDefault();
     saveComponent();
   }
 
   function handleAdvancedWShortcut(e: KeyboardEvent) {
-    //check if there is another modal open
-    if (isWrappedWithClass(e, "noflow") && !showModalAdvanced) return;
+    if ((isWrappedWithClass(e, "noflow") && !showModalAdvanced) || !showAdvance)
+      return;
     e.preventDefault();
     showAdvance();
   }
 
   function handleCodeWShortcut(e: KeyboardEvent) {
-    if (isWrappedWithClass(e, "noflow") && !openModal) return;
+    if ((isWrappedWithClass(e, "noflow") && !openModal) || !handleCodeModal)
+      return;
     e.preventDefault();
     handleCodeModal();
   }
 
   function handleShareWShortcut(e: KeyboardEvent) {
-    if (isWrappedWithClass(e, "noflow") && !showconfirmShare) return;
+    if (
+      (isWrappedWithClass(e, "noflow") && !showconfirmShare) ||
+      !shareComponent
+    )
+      return;
     e.preventDefault();
     shareComponent();
   }
+
   function handleGroupWShortcut(e: KeyboardEvent) {
-    if (isWrappedWithClass(e, "noflow")) return;
+    if (isWrappedWithClass(e, "noflow") || !ungroup) return;
     e.preventDefault();
     ungroup();
   }
 
   function handleMinimizeWShortcut(e: KeyboardEvent) {
-    if (isWrappedWithClass(e, "noflow")) return;
+    if (isWrappedWithClass(e, "noflow") || !minimizeFunction) return;
     e.preventDefault();
     minimizeFunction();
+  }
+
+  function handleToolModeWShortcut(e: KeyboardEvent) {
+    if (isWrappedWithClass(e, "noflow") || !activateToolMode) return;
+    e.preventDefault();
+    activateToolMode();
   }
 
   useHotkeys(minimize, handleMinimizeWShortcut, { preventDefault: true });
@@ -112,4 +133,5 @@ export default function useShortcuts({
   useHotkeys(download, handleDownloadWShortcut, { preventDefault: true });
   useHotkeys(freeze, handleFreeze);
   useHotkeys(freezeAll, handleFreezeAll);
+  useHotkeys(toolMode, handleToolModeWShortcut, { preventDefault: true });
 }

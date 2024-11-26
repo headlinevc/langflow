@@ -1,16 +1,16 @@
-from langflow.services.database.models.variable.model import VariableUpdate
-import pytest
-from unittest.mock import patch
-from uuid import uuid4
 from datetime import datetime
-from sqlmodel import SQLModel, Session, create_engine
+from unittest.mock import patch
+from uuid import UUID, uuid4
+
+import pytest
+from langflow.services.database.models.variable.model import VariableUpdate
 from langflow.services.deps import get_settings_service
-from langflow.services.variable.service import GENERIC_TYPE, CREDENTIAL_TYPE, DatabaseVariableService
-
-
-@pytest.fixture
-def client():
-    pass
+from langflow.services.settings.constants import VARIABLES_TO_GET_FROM_ENVIRONMENT
+from langflow.services.variable.constants import CREDENTIAL_TYPE, GENERIC_TYPE
+from langflow.services.variable.service import DatabaseVariableService
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlmodel import Session, SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 @pytest.fixture
@@ -20,111 +20,125 @@ def service():
 
 
 @pytest.fixture
-def session():
-    engine = create_engine("sqlite:///:memory:")
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
+async def session():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+    async with AsyncSession(engine) as session:
         yield session
 
 
-@pytest.mark.skip(reason="Temporarily disabled")
-def test_initialize_user_variables__donkey(service, session):
+def _get_variable(
+    session: Session,
+    service,
+    user_id: UUID | str,
+    name: str,
+    field: str,
+):
+    return service.get_variable(user_id, name, field, session=session)
+
+
+async def test_initialize_user_variables__create_and_update(service, session: AsyncSession):
     user_id = uuid4()
-    name = "OPENAI_API_KEY"
-    value = "donkey"
-    service.initialize_user_variables(user_id, session=session)
-    result = service.create_variable(user_id, "OPENAI_API_KEY", "donkey", session=session)
-    new_service = DatabaseVariableService(get_settings_service())
-    new_service.initialize_user_variables(user_id, session=session)
+    field = ""
+    good_vars = {k: f"value{i}" for i, k in enumerate(VARIABLES_TO_GET_FROM_ENVIRONMENT)}
+    bad_vars = {"VAR1": "value1", "VAR2": "value2", "VAR3": "value3"}
+    env_vars = {**good_vars, **bad_vars}
 
-    result = new_service.get_variable(user_id, name, "", session=session)
+    await service.create_variable(user_id, "OPENAI_API_KEY", "outdate", session=session)
+    env_vars["OPENAI_API_KEY"] = "updated_value"
 
-    assert result != value
+    with patch.dict("os.environ", env_vars, clear=True):
+        await service.initialize_user_variables(user_id=user_id, session=session)
+
+    variables = await service.list_variables(user_id, session=session)
+    for name in variables:
+        value = await session.run_sync(_get_variable, service, user_id, name, field)
+        assert value == env_vars[name]
+
+    assert all(i in variables for i in good_vars)
+    assert all(i not in variables for i in bad_vars)
 
 
-def test_initialize_user_variables__not_found_variable(service, session):
+async def test_initialize_user_variables__not_found_variable(service, session: AsyncSession):
     with patch("langflow.services.variable.service.DatabaseVariableService.create_variable") as m:
         m.side_effect = Exception()
-        service.initialize_user_variables(uuid4(), session=session)
-
+        await service.initialize_user_variables(uuid4(), session=session)
     assert True
 
 
-def test_initialize_user_variables__skipping_environment_variable_storage(service, session):
+async def test_initialize_user_variables__skipping_environment_variable_storage(service, session: AsyncSession):
     service.settings_service.settings.store_environment_variables = False
-    service.initialize_user_variables(uuid4(), session=session)
+    await service.initialize_user_variables(uuid4(), session=session)
     assert True
 
 
-def test_get_variable(service, session):
+async def test_get_variable(service, session: AsyncSession):
     user_id = uuid4()
     name = "name"
     value = "value"
     field = ""
-    service.create_variable(user_id, name, value, session=session)
+    await service.create_variable(user_id, name, value, session=session)
 
-    result = service.get_variable(user_id, name, field, session=session)
+    result = await session.run_sync(_get_variable, service, user_id, name, field)
 
     assert result == value
 
 
-def test_get_variable__ValueError(service, session):
+async def test_get_variable__valueerror(service, session: AsyncSession):
     user_id = uuid4()
     name = "name"
     field = ""
 
-    with pytest.raises(ValueError) as exc:
-        service.get_variable(user_id, name, field, session)
-
-    assert name in str(exc.value)
-    assert "variable not found" in str(exc.value)
+    with pytest.raises(ValueError, match=f"{name} variable not found."):
+        await session.run_sync(_get_variable, service, user_id, name, field)
 
 
-def test_get_variable__TypeError(service, session):
+async def test_get_variable__typeerror(service, session: AsyncSession):
     user_id = uuid4()
     name = "name"
     value = "value"
     field = "session_id"
     _type = CREDENTIAL_TYPE
-    service.create_variable(user_id, name, value, _type=_type, session=session)
+    await service.create_variable(user_id, name, value, _type=_type, session=session)
 
     with pytest.raises(TypeError) as exc:
-        service.get_variable(user_id, name, field, session)
+        await session.run_sync(_get_variable, service, user_id, name, field)
 
     assert name in str(exc.value)
     assert "purpose is to prevent the exposure of value" in str(exc.value)
 
 
-def test_list_variables(service, session):
+async def test_list_variables(service, session: AsyncSession):
     user_id = uuid4()
     names = ["name1", "name2", "name3"]
     value = "value"
     for name in names:
-        service.create_variable(user_id, name, value, session=session)
+        await service.create_variable(user_id, name, value, session=session)
 
-    result = service.list_variables(user_id, session=session)
+    result = await service.list_variables(user_id, session=session)
 
     assert all(name in result for name in names)
 
 
-def test_list_variables__empty(service, session):
-    result = service.list_variables(uuid4(), session=session)
+async def test_list_variables__empty(service, session: AsyncSession):
+    result = await service.list_variables(uuid4(), session=session)
 
     assert not result
     assert isinstance(result, list)
 
 
-def test_update_variable(service, session):
+async def test_update_variable(service, session: AsyncSession):
     user_id = uuid4()
     name = "name"
     old_value = "old_value"
     new_value = "new_value"
     field = ""
-    service.create_variable(user_id, name, old_value, session=session)
+    await service.create_variable(user_id, name, old_value, session=session)
 
-    old_recovered = service.get_variable(user_id, name, field, session=session)
-    result = service.update_variable(user_id, name, new_value, session=session)
-    new_recovered = service.get_variable(user_id, name, field, session=session)
+    old_recovered = await session.run_sync(_get_variable, service, user_id, name, field)
+    result = await service.update_variable(user_id, name, new_value, session=session)
+    new_recovered = await session.run_sync(_get_variable, service, user_id, name, field)
 
     assert old_value == old_recovered
     assert new_value == new_recovered
@@ -138,34 +152,34 @@ def test_update_variable(service, session):
     assert isinstance(result.updated_at, datetime)
 
 
-def test_update_variable__ValueError(service, session):
+async def test_update_variable__valueerror(service, session: AsyncSession):
     user_id = uuid4()
     name = "name"
     value = "value"
 
-    with pytest.raises(ValueError) as exc:
-        service.update_variable(user_id, name, value, session=session)
-
-    assert name in str(exc.value)
-    assert "variable not found" in str(exc.value)
+    with pytest.raises(ValueError, match=f"{name} variable not found."):
+        await service.update_variable(user_id, name, value, session=session)
 
 
-def test_update_variable_fields(service, session):
+async def test_update_variable_fields(service, session: AsyncSession):
     user_id = uuid4()
-    variable = service.create_variable(user_id, "old_name", "old_value", session=session)
+    new_name = new_value = "donkey"
+    variable = await service.create_variable(user_id, "old_name", "old_value", session=session)
     saved = variable.model_dump()
     variable = VariableUpdate(**saved)
-    variable.name = "new_name"
-    variable.value = "new_value"
+    variable.name = new_name
+    variable.value = new_value
     variable.default_fields = ["new_field"]
 
-    result = service.update_variable_fields(
+    result = await service.update_variable_fields(
         user_id=user_id,
         variable_id=saved.get("id"),
         variable=variable,
         session=session,
     )
 
+    assert result.name == new_name
+    assert result.value != new_value
     assert saved.get("id") == result.id
     assert saved.get("user_id") == result.user_id
     assert saved.get("name") != result.name
@@ -176,68 +190,58 @@ def test_update_variable_fields(service, session):
     assert saved.get("updated_at") != result.updated_at
 
 
-def test_delete_variable(service, session):
+async def test_delete_variable(service, session: AsyncSession):
     user_id = uuid4()
     name = "name"
     value = "value"
     field = ""
 
-    service.create_variable(user_id, name, value, session=session)
-    recovered = service.get_variable(user_id, name, field, session=session)
-    service.delete_variable(user_id, name, session=session)
-    with pytest.raises(ValueError) as exc:
-        service.get_variable(user_id, name, field, session)
+    await service.create_variable(user_id, name, value, session=session)
+    recovered = await session.run_sync(_get_variable, service, user_id, name, field)
+    await service.delete_variable(user_id, name, session=session)
+    with pytest.raises(ValueError, match=f"{name} variable not found."):
+        await session.run_sync(_get_variable, service, user_id, name, field)
 
     assert recovered == value
-    assert name in str(exc.value)
-    assert "variable not found" in str(exc.value)
 
 
-def test_delete_variable__ValueError(service, session):
+async def test_delete_variable__valueerror(service, session: AsyncSession):
     user_id = uuid4()
     name = "name"
 
-    with pytest.raises(ValueError) as exc:
-        service.delete_variable(user_id, name, session=session)
-
-    assert name in str(exc.value)
-    assert "variable not found" in str(exc.value)
+    with pytest.raises(ValueError, match=f"{name} variable not found."):
+        await service.delete_variable(user_id, name, session=session)
 
 
-def test_delete_varaible_by_id(service, session):
+async def test_delete_variable_by_id(service, session: AsyncSession):
     user_id = uuid4()
     name = "name"
     value = "value"
     field = "field"
 
-    saved = service.create_variable(user_id, name, value, session=session)
-    recovered = service.get_variable(user_id, name, field, session=session)
-    service.delete_variable_by_id(user_id, saved.id, session=session)
-    with pytest.raises(ValueError) as exc:
-        service.get_variable(user_id, name, field, session)
+    saved = await service.create_variable(user_id, name, value, session=session)
+    recovered = await session.run_sync(_get_variable, service, user_id, name, field)
+    await service.delete_variable_by_id(user_id, saved.id, session=session)
+    with pytest.raises(ValueError, match=f"{name} variable not found."):
+        await session.run_sync(_get_variable, service, user_id, name, field)
 
     assert recovered == value
-    assert name in str(exc.value)
-    assert "variable not found" in str(exc.value)
 
 
-def test_delete_variable_by_id__ValueError(service, session):
+async def test_delete_variable_by_id__valueerror(service, session: AsyncSession):
     user_id = uuid4()
     variable_id = uuid4()
 
-    with pytest.raises(ValueError) as exc:
-        service.delete_variable_by_id(user_id, variable_id, session=session)
-
-    assert str(variable_id) in str(exc.value)
-    assert "variable not found" in str(exc.value)
+    with pytest.raises(ValueError, match=f"{variable_id} variable not found."):
+        await service.delete_variable_by_id(user_id, variable_id, session=session)
 
 
-def test_create_variable(service, session):
+async def test_create_variable(service, session: AsyncSession):
     user_id = uuid4()
     name = "name"
     value = "value"
 
-    result = service.create_variable(user_id, name, value, session=session)
+    result = await service.create_variable(user_id, name, value, session=session)
 
     assert result.user_id == user_id
     assert result.name == name

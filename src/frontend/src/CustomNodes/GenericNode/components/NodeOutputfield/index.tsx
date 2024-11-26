@@ -1,26 +1,19 @@
+import { ICON_STROKE_WIDTH } from "@/constants/constants";
 import { cloneDeep } from "lodash";
-import { useEffect, useRef, useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
+import { useEffect, useRef } from "react";
 import { useUpdateNodeInternals } from "reactflow";
 import { default as IconComponent } from "../../../../components/genericIconComponent";
 import ShadTooltip from "../../../../components/shadTooltipComponent";
 import { Button } from "../../../../components/ui/button";
-import { Case } from "../../../../shared/components/caseComponent";
 import useFlowStore from "../../../../stores/flowStore";
-import { useShortcutsStore } from "../../../../stores/shortcuts";
 import { useTypesStore } from "../../../../stores/typesStore";
-import {
-  NodeOutputFieldComponentType,
-  ParameterComponentType,
-} from "../../../../types/components";
+import { NodeOutputFieldComponentType } from "../../../../types/components";
 import {
   getGroupOutputNodeId,
   scapedJSONStringfy,
 } from "../../../../utils/reactflowUtils";
 import {
-  classNames,
   cn,
-  isThereModal,
   logHasMessage,
   logTypeIsError,
   logTypeIsUnknown,
@@ -41,6 +34,9 @@ export default function NodeOutputField({
   type,
   outputName,
   outputProxy,
+  lastOutput,
+  colorName,
+  isToolMode = false,
 }: NodeOutputFieldComponentType): JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
   const nodes = useFlowStore((state) => state.nodes);
@@ -49,7 +45,6 @@ export default function NodeOutputField({
   const myData = useTypesStore((state) => state.data);
   const updateNodeInternals = useUpdateNodeInternals();
   const setFilterEdge = useFlowStore((state) => state.setFilterEdge);
-  const [openOutputModal, setOpenOutputModal] = useState(false);
   const flowPool = useFlowStore((state) => state.flowPool);
 
   let flowPoolId = data.id;
@@ -80,17 +75,6 @@ export default function NodeOutputField({
     internalOutputName,
   );
   const errorOutput = logTypeIsError(flowPoolNode?.data, internalOutputName);
-
-  const preventDefault = true;
-
-  function handleOutputWShortcut() {
-    if (!displayOutputPreview || unknownOutput) return;
-    if (selected) {
-      setOpenOutputModal((state) => !state);
-    }
-  }
-  const output = useShortcutsStore((state) => state.output);
-  useHotkeys(output, handleOutputWShortcut, { preventDefault });
 
   let disabledOutput =
     edges.some((edge) => edge.sourceHandle === scapedJSONStringfy(id)) ?? false;
@@ -129,38 +113,62 @@ export default function NodeOutputField({
       id={id}
       title={title}
       edges={edges}
+      nodeId={data.id}
       myData={myData}
       colors={colors}
       setFilterEdge={setFilterEdge}
       showNode={showNode}
       testIdComplement={`${data?.type?.toLowerCase()}-${showNode ? "shownode" : "noshownode"}`}
+      colorName={colorName}
     />
   );
 
   return !showNode ? (
-    Handle
+    <>{Handle}</>
   ) : (
     <div
       ref={ref}
-      className="relative mt-1 flex w-full flex-wrap items-center justify-between bg-muted px-5 py-2"
+      className={cn(
+        "relative mt-1 flex h-11 w-full flex-wrap items-center justify-between bg-muted px-5 py-2",
+        lastOutput ? "rounded-b-[0.69rem]" : "",
+        isToolMode && "bg-primary",
+      )}
     >
       <>
         <div className="flex w-full items-center justify-end truncate text-sm">
-          <div className="flex-1">
+          <div className="flex flex-1">
             <Button
               disabled={disabledOutput}
               unstyled
               onClick={() => handleUpdateOutputHide()}
               data-testid={`input-inspection-${title.toLowerCase()}`}
             >
-              <IconComponent
-                className={cn(
-                  "h-4 w-4",
-                  disabledOutput ? "text-muted-foreground" : "",
-                )}
-                strokeWidth={1.5}
-                name={data.node?.outputs![index].hidden ? "EyeOff" : "Eye"}
-              />
+              <ShadTooltip
+                content={
+                  disabledOutput
+                    ? null
+                    : data.node?.outputs![index].hidden
+                      ? "Show output"
+                      : "Hide output"
+                }
+              >
+                <div>
+                  <IconComponent
+                    className={cn(
+                      "icon-size",
+                      disabledOutput
+                        ? isToolMode
+                          ? "text-placeholder-foreground opacity-60"
+                          : "text-placeholder-foreground hover:text-foreground"
+                        : isToolMode
+                          ? "text-background hover:text-secondary-hover"
+                          : "text-placeholder-foreground hover:text-primary-hover",
+                    )}
+                    strokeWidth={ICON_STROKE_WIDTH}
+                    name={data.node?.outputs![index].hidden ? "EyeOff" : "Eye"}
+                  />
+                </div>
+              </ShadTooltip>
             </Button>
           </div>
 
@@ -169,7 +177,7 @@ export default function NodeOutputField({
               <IconComponent className="h-5 w-5 text-ice" name={"Snowflake"} />
             </div>
           )}
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <span className={data.node?.frozen ? "text-ice" : ""}>
               <OutputComponent
                 proxy={outputProxy}
@@ -183,6 +191,7 @@ export default function NodeOutputField({
                 nodeId={data.id}
                 frozen={data.node?.frozen}
                 name={title ?? type}
+                isToolMode={isToolMode}
               />
             </span>
             <ShadTooltip
@@ -190,40 +199,41 @@ export default function NodeOutputField({
                 displayOutputPreview
                   ? unknownOutput
                     ? "Output can't be displayed"
-                    : "Inspect Output"
+                    : "Inspect output"
                   : "Please build the component first"
               }
             >
-              <OutputModal
-                disabled={!displayOutputPreview || unknownOutput}
-                nodeId={flowPoolId}
-                outputName={internalOutputName}
-              >
-                <Button
-                  unstyled
+              <div className="flex">
+                <OutputModal
                   disabled={!displayOutputPreview || unknownOutput}
-                  data-testid={`output-inspection-${title.toLowerCase()}`}
+                  nodeId={flowPoolId}
+                  outputName={internalOutputName}
                 >
-                  {errorOutput ? (
-                    <IconComponent
-                      className={classNames(
-                        "h-5 w-5 rounded-md text-status-red",
-                      )}
-                      name={"X"}
-                    />
-                  ) : (
-                    <IconComponent
-                      className={classNames(
-                        "h-5 w-5 rounded-md",
-                        displayOutputPreview && !unknownOutput
-                          ? "hover:text-medium-indigo"
-                          : "cursor-not-allowed text-muted-foreground",
-                      )}
-                      name={"ScanEye"}
-                    />
-                  )}
-                </Button>
-              </OutputModal>
+                  <Button
+                    disabled={!displayOutputPreview || unknownOutput}
+                    data-testid={`output-inspection-${title.toLowerCase()}`}
+                    unstyled
+                  >
+                    {
+                      <IconComponent
+                        className={cn(
+                          "icon-size",
+                          isToolMode
+                            ? displayOutputPreview && !unknownOutput
+                              ? "text-background hover:text-secondary-hover"
+                              : "cursor-not-allowed text-placeholder-foreground opacity-80"
+                            : displayOutputPreview && !unknownOutput
+                              ? "text-foreground hover:text-primary-hover"
+                              : "cursor-not-allowed text-placeholder-foreground opacity-60",
+                          errorOutput ? "text-destructive" : "",
+                        )}
+                        name={"ScanEye"}
+                        strokeWidth={ICON_STROKE_WIDTH}
+                      />
+                    }
+                  </Button>
+                </OutputModal>
+              </div>
             </ShadTooltip>
           </div>
         </div>

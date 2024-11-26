@@ -1,10 +1,12 @@
 import { usePostTemplateValue } from "@/controllers/API/queries/nodes/use-post-template-value";
+import { track } from "@/customization/utils/analytics";
 import useAlertStore from "@/stores/alertStore";
 import useFlowStore from "@/stores/flowStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import { APIClassType, InputFieldType } from "@/types/api";
 import { NodeType } from "@/types/flow";
 import { cloneDeep } from "lodash";
+import { useUpdateNodeInternals } from "reactflow";
 import { mutateTemplate } from "../helpers/mutate-template";
 
 export type handleOnNewValueType = (
@@ -32,6 +34,7 @@ const useHandleOnNewValue = ({
   const takeSnapshot = useFlowsManagerStore((state) => state.takeSnapshot);
 
   const setNode = setNodeExternal ?? useFlowStore((state) => state.setNode);
+  const updateNodeInternals = useUpdateNodeInternals();
 
   const setErrorData = useAlertStore((state) => state.setErrorData);
 
@@ -44,6 +47,8 @@ const useHandleOnNewValue = ({
   const handleOnNewValue: handleOnNewValueType = async (changes, options?) => {
     const newNode = cloneDeep(node);
     const template = newNode.template;
+
+    track("Component Edited", { nodeId });
 
     if (!template) {
       setErrorData({ title: "Template not found in the component" });
@@ -77,7 +82,7 @@ const useHandleOnNewValue = ({
       });
     };
 
-    if (shouldUpdate && changes.value) {
+    if (shouldUpdate && changes.value !== undefined) {
       mutateTemplate(
         changes.value,
         newNode,
@@ -87,14 +92,21 @@ const useHandleOnNewValue = ({
       );
     }
 
-    setNode(nodeId, (oldNode) => {
-      const newData = cloneDeep(oldNode.data);
-      newData.node = newNode;
-      return {
-        ...oldNode,
-        data: newData,
-      };
-    });
+    setNode(
+      nodeId,
+      (oldNode) => {
+        const newData = cloneDeep(oldNode.data);
+        newData.node = newNode;
+        return {
+          ...oldNode,
+          data: newData,
+        };
+      },
+      true,
+      () => {
+        updateNodeInternals(nodeId);
+      },
+    );
   };
 
   return { handleOnNewValue };

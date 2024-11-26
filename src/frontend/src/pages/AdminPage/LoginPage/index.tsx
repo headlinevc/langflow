@@ -1,5 +1,6 @@
+import LangflowLogo from "@/assets/LangflowLogo.svg?react";
 import { useLoginUser } from "@/controllers/API/queries/auth";
-import { useFolderStore } from "@/stores/foldersStore";
+import { ENABLE_NEW_LOGO } from "@/customization/feature-flags";
 import { useContext, useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
@@ -17,8 +18,6 @@ export default function LoginAdminPage() {
   const [inputState, setInputState] =
     useState<loginInputStateType>(CONTROL_LOGIN_STATE);
   const { login } = useContext(AuthContext);
-  const setLoading = useAlertStore((state) => state.setLoading);
-  const setSelectedFolder = useFolderStore((state) => state.setSelectedFolder);
 
   const { password, username } = inputState;
   const setErrorData = useAlertStore((state) => state.setErrorData);
@@ -38,9 +37,6 @@ export default function LoginAdminPage() {
 
     mutate(user, {
       onSuccess: (res) => {
-        setSelectedFolder(null);
-
-        setLoading(true);
         login(res.access_token, "login", res.refresh_token);
       },
       onError: (error) => {
@@ -55,7 +51,14 @@ export default function LoginAdminPage() {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center bg-muted">
       <div className="flex w-72 flex-col items-center justify-center gap-2">
-        <span className="mb-4 text-5xl">⛓️</span>
+        {ENABLE_NEW_LOGO ? (
+          <LangflowLogo
+            title="Langflow logo"
+            className="h-10 w-10 scale-[1.5]"
+          />
+        ) : (
+          <span className="mb-4 text-5xl">⛓️</span>
+        )}
         <span className="mb-6 text-2xl font-semibold text-primary">Admin</span>
         <Input
           onChange={({ target: { value } }) => {

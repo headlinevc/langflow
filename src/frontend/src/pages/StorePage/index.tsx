@@ -1,6 +1,5 @@
 import { uniqueId } from "lodash";
 import { useContext, useEffect, useState } from "react";
-import CollectionCardComponent from "../../components/cardComponent";
 import IconComponent from "../../components/genericIconComponent";
 import PageLayout from "../../components/pageLayout";
 import ShadTooltip from "../../components/shadTooltipComponent";
@@ -8,8 +7,10 @@ import { SkeletonCardComponent } from "../../components/skeletonCardComponent";
 import { Button } from "../../components/ui/button";
 
 import StoreCardComponent from "@/components/storeCardComponent";
-import { useGetTagsQuery } from "@/controllers/API/queries/store";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { CustomLink } from "@/customization/components/custom-link";
+import { useCustomNavigate } from "@/customization/hooks/use-custom-navigate";
+import { useUtilityStore } from "@/stores/utilityStore";
+import { useParams } from "react-router-dom";
 import PaginatorComponent from "../../components/paginatorComponent";
 import { TagsSelector } from "../../components/tagsSelectorComponent";
 import { Badge } from "../../components/ui/badge";
@@ -27,7 +28,13 @@ import {
   INVALID_API_ERROR_ALERT,
   NOAPI_ERROR_ALERT,
 } from "../../constants/alerts_constants";
-import { STORE_DESC, STORE_TITLE } from "../../constants/constants";
+import {
+  STORE_DESC,
+  STORE_PAGINATION_PAGE,
+  STORE_PAGINATION_ROWS_COUNT,
+  STORE_PAGINATION_SIZE,
+  STORE_TITLE,
+} from "../../constants/constants";
 import { AuthContext } from "../../contexts/authContext";
 import { getStoreComponents } from "../../controllers/API";
 import useAlertStore from "../../stores/alertStore";
@@ -35,7 +42,7 @@ import useFlowsManagerStore from "../../stores/flowsManagerStore";
 import { useStoreStore } from "../../stores/storeStore";
 import { storeComponent } from "../../types/store";
 import { cn } from "../../utils/utils";
-import InputSearchComponent from "../MainPage/components/myCollectionComponent/components/inputSearchComponent";
+import InputSearchComponent from "../MainPage/oldComponents/myCollectionComponent/components/inputSearchComponent";
 
 export default function StorePage(): JSX.Element {
   const hasApiKey = useStoreStore((state) => state.hasApiKey);
@@ -54,15 +61,16 @@ export default function StorePage(): JSX.Element {
   const [inputText, setInputText] = useState<string>("");
   const [searchData, setSearchData] = useState<storeComponent[]>([]);
   const [totalRowsCount, setTotalRowsCount] = useState(0);
-  const [pageSize, setPageSize] = useState(12);
-  const [pageIndex, setPageIndex] = useState(1);
+  const [pageSize, setPageSize] = useState(STORE_PAGINATION_SIZE);
+  const [pageIndex, setPageIndex] = useState(STORE_PAGINATION_PAGE);
   const [pageOrder, setPageOrder] = useState("Popular");
   const [tabActive, setTabActive] = useState("All");
   const [searchNow, setSearchNow] = useState("");
   const [selectFilter, setSelectFilter] = useState("all");
-  const { isFetching, data } = useGetTagsQuery();
 
-  const navigate = useNavigate();
+  const tags = useUtilityStore((state) => state.tags);
+
+  const navigate = useCustomNavigate();
 
   useEffect(() => {
     if (!loadingApiKey) {
@@ -127,7 +135,7 @@ export default function StorePage(): JSX.Element {
           setTotalRowsCount(
             filteredCategories?.length === 0
               ? Number(res?.count ?? 0)
-              : res?.results?.length ?? 0,
+              : (res?.results?.length ?? 0),
           );
         }
       })
@@ -147,8 +155,8 @@ export default function StorePage(): JSX.Element {
   }
 
   function resetPagination() {
-    setPageIndex(1);
-    setPageSize(12);
+    setPageIndex(STORE_PAGINATION_PAGE);
+    setPageSize(STORE_PAGINATION_SIZE);
   }
 
   return (
@@ -276,8 +284,8 @@ export default function StorePage(): JSX.Element {
             </Select>
             {id === undefined ? (
               <TagsSelector
-                tags={data ?? []}
-                loadingTags={isFetching}
+                tags={tags ?? []}
+                loadingTags={false}
                 disabled={loading}
                 selectedTags={filteredCategories}
                 setSelectedTags={setFilterCategories}
@@ -289,9 +297,9 @@ export default function StorePage(): JSX.Element {
                 size="sq"
                 className="gap-2 bg-beta-foreground text-background hover:bg-beta-foreground"
               >
-                <Link to={"/store"} className="cursor-pointer">
+                <CustomLink to={"/store"} className="cursor-pointer">
                   <IconComponent name="X" className="h-4 w-4" />
-                </Link>
+                </CustomLink>
                 {id}
               </Badge>
             )}
@@ -372,11 +380,11 @@ export default function StorePage(): JSX.Element {
         {!loading && searchData.length > 0 && (
           <div className="relative py-6">
             <PaginatorComponent
-              storeComponent={true}
               pageIndex={pageIndex}
               pageSize={pageSize}
+              rowsCount={STORE_PAGINATION_ROWS_COUNT}
               totalRowsCount={totalRowsCount}
-              paginate={(pageSize, pageIndex) => {
+              paginate={(pageIndex, pageSize) => {
                 setPageIndex(pageIndex);
                 setPageSize(pageSize);
               }}
