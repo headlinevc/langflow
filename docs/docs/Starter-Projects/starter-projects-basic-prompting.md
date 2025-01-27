@@ -1,6 +1,5 @@
 ---
 title: Basic Prompting
-sidebar_position: 0
 slug: /starter-projects-basic-prompting
 ---
 
@@ -20,7 +19,7 @@ This article demonstrates how to use Langflow's prompt tools to issue basic prom
 
 ---
 
-- [Langflow installed and running](/getting-started-installation)
+- [Langflow installed and running](/get-started-installation)
 - [OpenAI API key created](https://platform.openai.com/)
 
 ## Create the basic prompting flow {#19d5305239c841548a695e2bf7839e7a}
